@@ -57,8 +57,22 @@ def health():
 
 @app.route('/count', methods=['GET'])
 def count():
-    count = db.songs.count_documents({})
+    try:
+        count = db.songs.count_documents({})
+    except NameError:
+        return {"error": "Something went wrong"}, 500
+    if not count:
+        return {"error": "No data available"}, 404
     return {"count": count}, 200
 
-@app.route('/song', methods['GET'])
-def get_song()
+@app.route('/song', methods=['GET'])
+def songs():
+    try:
+        songs = list(db.songs.find({}))
+    except NameError:
+        return {"error": "Something went wrong"}, 500
+    
+    if not songs:
+        return {"error": "No data available"}, 404
+    
+    return {"songs": parse_json(songs)}, 200
