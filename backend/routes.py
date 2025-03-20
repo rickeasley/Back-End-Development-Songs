@@ -116,14 +116,6 @@ def create_song():
         # retrieving the json data sent in the request
         new_song = request.json
         
-        ## remove this section, is here just for testing purposes ##
-#        db.songs.delete_one({"id": new_song['id']})        
-#        song = db.songs.find_one({"id": new_song['id']})
-#        if not song:
-#            return {"message": f"song id {new_song['id']} not found"}
-#        else:
-#            return {"message": f"song id {new_song['id']} found"}
-        #############################################################
         # if nothing was returned status code 422 sent in response
         if not new_song:
             return jsonify({"message": "Invalid data"}), 422
