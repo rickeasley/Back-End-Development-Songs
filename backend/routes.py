@@ -53,13 +53,20 @@ def parse_json(data):
 ######################################################################
 @app.route('/health', methods=['GET'])
 def health():
+    """
+    route method for health check
+    """
     return {"status": "ok"}, 200
 
 @app.route('/count', methods=['GET'])
 def count():
+    """
+    route method to get the number of documents
+    """
     try:
         count = db.songs.count_documents({})
-    except NameError:
+    except Exception as e:
+        print(f"An error occurred: {e}")
         return {"error": "Something went wrong"}, 500
     if not count:
         return {"error": "No data available"}, 404
@@ -67,20 +74,34 @@ def count():
 
 @app.route('/song', methods=["GET"])
 def songs():
+    """
+    route method for getting a list of documents
+    """
     try:
+        # retrieving all the documents and saving as a list
         songs = list(db.songs.find({}))
-    except NameError:
+    except Exception as e:
+        print(f"An error occurred: {e}")
         return {"error": "Something went wrong"}, 500
     if not songs:
+        # if nothing was returned from find, status code 404 sent
         return {"error": "No data available"}, 404
+    # parse_json is used since songs is non-serializable
     return {"songs": parse_json(songs)}, 200
 
-@app.route('/song/<id>', methods=["GET"])
+@app.route('/song/<int:id>', methods=["GET"])
 def get_song_by_id(id):
+    """
+    route method for retrieving a document by id 
+    variable passed in request
+    """
     try:
+        # searching for a specific document by the id key
         song = db.songs.find_one({"id": id})
+        # if nothing was returned, send status code 404
         if not song:
             return jsonify({"message": f"Song with id {id} not found"}), 404
+        # parse_json used since song is non-serializable
         return parse_json(song), 200
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -88,23 +109,74 @@ def get_song_by_id(id):
     
 @app.route('/song', methods=["POST"])
 def create_song():
+    """
+    route method for the POST request 
+    """
     try:
+        # retrieving the json data sent in the request
         new_song = request.json
+        
+        ## remove this section, is here just for testing purposes ##
 #        db.songs.delete_one({"id": new_song['id']})        
 #        song = db.songs.find_one({"id": new_song['id']})
 #        if not song:
 #            return {"message": f"song id {new_song['id']} not found"}
 #        else:
 #            return {"message": f"song id {new_song['id']} found"}
+        #############################################################
+        # if nothing was returned status code 422 sent in response
         if not new_song:
             return jsonify({"message": "Invalid data"}), 422
 
+        # checks if a document with the id of the data sent already
+        # exists and if so, sends a status code 302 in response
         if db.songs.find_one({"id": new_song["id"]}):
             return {"Message": f"song with id {new_song['id']} already present"}, 302
-
+        # retrieving the mongodb inserted id
         inserted_id = db.songs.insert_one(new_song).inserted_id
-
+        # sending inserted_id back in response with status code 200
         return jsonify({"inserted id": parse_json(inserted_id)}), 200
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return jsonify({"error": "Something went wrong"}), 500
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    """
+    route method to update a document with passed in id
+    """
+    try:
+        # retrieving json data from request
+        song_update = request.json
+        # searching to see if document with id exists
+        song = db.songs.find_one({"id": id})
+        if song is None:
+            return jsonify({"message": "song not found"}), 404
+        # creating a changes object using json from request
+        changes = {"$set": song_update}
+        # updating the document matching passed id with the changes object
+        is_updated = db.songs.update_one({"id": id}, changes)
+        # verifying that the update was actually done and returning message
+        # if update was not made
+        if is_updated.modified_count == 0:
+            return jsonify({"message": "song found, but nothing updated"}), 200
+        return parse_json(db.songs.find_one({"id": id})), 201
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return jsonify({"error": "Something went wrong"}), 500
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    """
+    route method for deleting a document by id
+    """
+    try:
+        # tries to delete document
+        is_deleted = db.songs.delete_one({"id": id})
+        # checking if the result from the delete happend
+        if is_deleted.deleted_count == 0:
+            return jsonify({"message": "song not found"}), 404
+        return {},204
     except Exception as e:
         print(f"An error occurred: {e}")
         return jsonify({"error": "Something went wrong"}), 500
